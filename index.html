@@ -878,13 +878,13 @@ function draw(dt,t){
   ctx.setTransform(DPR,0,0,DPR,0,0);
   if(flash>0){ctx.fillStyle='rgba(255,241,184,'+flash*.6+')';ctx.fillRect(0,0,W,H);flash=Math.max(0,flash-dt*3);}
   // HUD
-  hostT-=dt;if(hostT<=0)$('host').style.display='none';
-  clapT-=dt;$('clap').style.display=clapT>0&&Math.sin(t*12)>-.3?'block':'none';
-  introT-=dt;if(introT<=0)$('intro').style.display='none';
+  hostT-=rdt;if(hostT<=0)$('host').style.display='none';
+  clapT-=rdt;$('clap').style.display=clapT>0&&Math.sin(t*12)>-.3?'block':'none';
+  introT-=rdt;if(introT<=0)$('intro').style.display='none';
   if(V.st==='play'){
     const me=V.P.get(myId);
     $('top').textContent='EN LICE : '+al+' / '+V.P.size+(me&&!me.alive?' · tu regardes depuis les loges':'');
-    bigT-=dt;let txt=bigT>0?bigMsg:'';
+    bigT-=rdt;let txt=bigT>0?bigMsg:'';
     if(!txt&&V.cd>0&&al>1&&introT<=0)txt='La patate arrive… '+Math.ceil(V.cd);
     if(!txt&&V.hold===myId)txt='REFILE-LA !';
     $('big').textContent=txt;$('big').style.color=V.hold===myId?'#ff7a4d':'#fff';
@@ -896,9 +896,9 @@ function draw(dt,t){
 function itemLabel(me,d){return me.items&&me.items.length?ICON[me.items[0]]+' '+ITEMS[me.items[0]]+(me.items.length>1?'  +'+me.items.slice(1).map(k=>ICON[k]).join(''):''):d;}
 
 /* ---------- boucle ---------- */
-let last=performance.now(),netAcc=0,inAcc=0,netLast=0;
+let rdt=0,last=performance.now(),netAcc=0,inAcc=0,netLast=0;
 function frame(now){
-  const dt=Math.min(.05,(now-last)/1000);last=now;
+  const dt=Math.min(.05,(now-last)/1000);rdt=Math.min(1,(now-last)/1000);last=now;
   draw(dt,now/1000);
   requestAnimationFrame(frame);
 }
