@@ -194,7 +194,7 @@ function startMatch(){
   Object.assign(S,{items:[],walls:[],oils:[],holes:[],fries:[],decoys:[],wind:null,order:[],t:0,hold:-1,nextBombIn:3.6,endT:0,itemT:3,freeze:0,slow:0,duel:false,startN:n});
   S.R=230+38*n;
   const k=n<=3?3:4,go=Math.random()*TAU;
-  S.gaps=[];for(let i=0;i<k;i++)S.gaps.push({a:go+i*TAU/k+rand(-.25,.25),w:.2});
+  S.gaps=[];for(let i=0;i<k;i++)S.gaps.push({a:go+i*TAU/k+rand(-.25,.25),w:.23});
   S.ep++;S.title=pick(TITLES);
   const off=Math.random()*TAU;
   S.players.forEach((p,i)=>{
@@ -828,6 +828,12 @@ function draw(dt,t){
     ctx.strokeStyle='rgba(255,255,255,.25)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,R+2,a0,a1);ctx.stroke();
     ctx.fillStyle='#b9b1c4';for(let a=a0+.06;a<a1-.03;a+=.12){ctx.beginPath();ctx.arc(Math.cos(a)*(R+6),Math.sin(a)*(R+6),2.2,0,TAU);ctx.fill();}
   }
+  for(const g of G){
+    const og2=ctx.createRadialGradient(0,0,R-60,0,0,R+30);og2.addColorStop(0,'rgba(255,176,48,0)');og2.addColorStop(.45,'rgba(255,176,48,.55)');og2.addColorStop(.7,'#ffb030');og2.addColorStop(1,'#ff9a1a');
+    ctx.fillStyle=og2;ctx.beginPath();ctx.arc(0,0,R+30,g.a-g.w,g.a+g.w);ctx.arc(0,0,R-60,g.a+g.w,g.a-g.w,true);ctx.closePath();ctx.fill();
+    ctx.lineWidth=10;const n=10;for(let i=0;i<n;i++){ctx.strokeStyle=i%2?'#0b0a0e':'#ffd23f';ctx.beginPath();ctx.arc(0,0,R-66,g.a-g.w+i*2*g.w/n,g.a-g.w+(i+1)*2*g.w/n);ctx.stroke();}
+    ctx.font='bold 13px Bungee, Arial Black';ctx.textAlign='center';ctx.save();ctx.rotate(g.a+Math.PI/2);ctx.fillStyle='rgba(255,45,74,'+(.55+.35*Math.sin(t*5))+')';ctx.fillText('DANGER',0,-(R-90));ctx.restore();
+  }
   for(const g of G)for(const sgn of[-1,1]){const a=g.a+sgn*g.w,x=Math.cos(a)*(R+6),y=Math.sin(a)*(R+6);
     ctx.save();ctx.translate(x,y);ctx.rotate(a);ctx.fillStyle='#ffd23f';ctx.strokeStyle='#0b0a0e';ctx.lineWidth=3;ctx.fillRect(-14,-9,28,18);ctx.strokeRect(-14,-9,28,18);
     ctx.fillStyle='#0b0a0e';for(let i=-14;i<14;i+=9){ctx.beginPath();ctx.moveTo(i,-9);ctx.lineTo(i+5,-9);ctx.lineTo(i+1,9);ctx.lineTo(i-4,9);ctx.fill();}ctx.restore();
@@ -890,22 +896,24 @@ function draw(dt,t){
 function itemLabel(me,d){return me.items&&me.items.length?ICON[me.items[0]]+' '+ITEMS[me.items[0]]+(me.items.length>1?'  +'+me.items.slice(1).map(k=>ICON[k]).join(''):''):d;}
 
 /* ---------- boucle ---------- */
-let last=performance.now(),netAcc=0,inAcc=0;
+let last=performance.now(),netAcc=0,inAcc=0,netLast=0;
 function frame(now){
   const dt=Math.min(.05,(now-last)/1000);last=now;
-  if(isHost){
-    const me=byId(myId);if(me)me.in=readInput();
-    step(dt);const s=snapshot();handle(s);
-    netAcc+=dt;if(netAcc>=.05){netAcc=0;for(const c of conns.values())if(c.open)c.send(s);}
-  }else if(hostConn&&hostConn.open){
-    inAcc+=dt;if(inAcc>=.033){inAcc=0;const i=readInput();i.t='in';hostConn.send(i);}
-  }
   draw(dt,now/1000);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-setInterval(()=>{if(isHost&&document.hidden){const n=performance.now(),dt=Math.min(.25,(n-last)/1000);last=n;
-  for(let i=0;i<5;i++)step(dt/5);const s=snapshot();for(const c of conns.values())if(c.open)c.send(s);}},100);
+// la simulation de l'hôte tourne à part du dessin : elle reste fluide même si l'affichage ralentit
+let simLast=performance.now();
+setInterval(()=>{
+  const n=performance.now();let dt=Math.min(1,(n-simLast)/1000);simLast=n;
+  if(!isHost){inAcc+=dt;if(hostConn&&hostConn.open&&inAcc>=.033){inAcc=0;const i=readInput();i.t='in';hostConn.send(i);}return;}
+  const me=byId(myId);if(me)me.in=readInput();
+  while(dt>0){const d=Math.min(dt,1/60);step(d);dt-=d;}
+  const s=snapshot();handle(s);
+  netAcc+=Math.min(1,(n-(netLast||n))/1000);netLast=n;
+  if(netAcc>=.05){netAcc=0;for(const c of conns.values())if(c.open)c.send(s);}
+},16);
 
 /* ---------- boutons ---------- */
 $('bCreate').onclick=()=>{audio();createRoom(0);};
